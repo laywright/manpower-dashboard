@@ -60,7 +60,8 @@ def load_data(uploaded_file):
             df.rename(columns={df.columns[0]: 'Bus'}, inplace=True)
             
             # Calculate additional metrics
-            df['Total Man-Hours'] = df.drop(columns='Bus').sum(axis=1)
+            process_columns = [col for col in df.columns if col != 'Bus']
+            df['Total'] = df[process_columns].sum(axis=1)
             return df
         return None
     except Exception as e:
@@ -70,34 +71,68 @@ def load_data(uploaded_file):
 @st.cache_data
 def process_data(df):
     """Cache data processing operations"""
-    # Any heavy data processing would go here
     return df
 
 def overview_page(df):
     """Dashboard overview page with key metrics"""
     st.title("⏱️ Process Time Analytics Dashboard")
-    st.markdown("""
-    This dashboard provides comprehensive analysis of process times across different buses. 
-    Use the sidebar to navigate between different analytical views.
-    """)
     
     if df is not None:
-        # Key Metrics
+        # Summary Statistics at the top
+        st.subheader("Summary Statistics")
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Total Buses Analyzed", len(df))
         with col2:
             st.metric("Total Processes Tracked", len(df.columns) - 2)  # Exclude Bus and Total
         with col3:
-            st.metric("Total Man-Hours Recorded", f"{df['Total Man-Hours'].sum():,.1f}")
+            st.metric("Total Hours Recorded", f"{df['Total'].sum():,.1f}")
         
-        # Data Preview
-        st.subheader("Data Preview")
-        st.dataframe(df.head(), use_container_width=True)
+        st.markdown("---")
         
-        # Summary Statistics
-        st.subheader("Summary Statistics")
-        st.dataframe(df.describe(), use_container_width=True)
+        # Overview Statistics
+        st.subheader("Overview Statistics")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### Data Preview")
+            st.dataframe(df.head(), use_container_width=True)
+            
+        with col2:
+            st.markdown("#### Descriptive Statistics")
+            st.dataframe(df.describe(), use_container_width=True)
+        
+        # Detailed Man-Hours by Bus (Dropdown)
+        st.markdown("---")
+        st.subheader("Detailed Hours by Bus")
+        
+        selected_bus = st.selectbox(
+            "Select Bus to View Detailed Hours",
+            options=df['Bus'].unique()
+        )
+        
+        if selected_bus:
+            bus_data = df[df['Bus'] == selected_bus].drop(columns=['Bus', 'Total'])
+            bus_data = bus_data.T.reset_index()
+            bus_data.columns = ['Process', 'Hours']
+            
+            st.dataframe(
+                bus_data.sort_values('Hours', ascending=False),
+                hide_index=True,
+                use_container_width=True
+            )
+            
+            # Visualization of selected bus
+            fig = px.bar(
+                bus_data.sort_values('Hours', ascending=True),
+                x='Hours',
+                y='Process',
+                orientation='h',
+                title=f"Process Hours for Bus {selected_bus}",
+                labels={'Hours': 'Hours', 'Process': 'Process'},
+                height=500
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
 def time_analysis_page(df):
     """Detailed time analysis visualizations"""
@@ -105,7 +140,7 @@ def time_analysis_page(df):
     
     if df is not None:
         # Process selection
-        processes = df.columns[1:-1]  # Exclude Bus and Total
+        processes = [col for col in df.columns if col not in ['Bus', 'Total']]
         selected_processes = st.multiselect(
             "Select Processes to Analyze",
             options=processes,
@@ -113,9 +148,8 @@ def time_analysis_page(df):
         )
         
         if selected_processes:
-            tab1, tab2, tab3, tab4 = st.tabs([
+            tab1, tab2, tab3 = st.tabs([
                 "Average Time", 
-                "Total per Bus", 
                 "Variability", 
                 "Heatmap"
             ])
@@ -150,35 +184,6 @@ def time_analysis_page(df):
                 )
             
             with tab2:
-                st.subheader("Total Man-Hours per Bus")
-                df_sorted = df[['Bus'] + selected_processes].sort_values(by='Bus')
-                df_sorted['Total'] = df_sorted[selected_processes].sum(axis=1)
-                
-                # Interactive bar chart
-                fig = px.bar(
-                    df_sorted,
-                    x='Bus',
-                    y='Total',
-                    color='Total',
-                    color_continuous_scale='Viridis',
-                    labels={'Bus': 'Bus Number', 'Total': 'Total Man-Hours'},
-                    height=500
-                )
-                fig.update_layout(
-                    title="Total Man-Hours per Bus",
-                    xaxis_title="Bus Number",
-                    yaxis_title="Total Man-Hours"
-                )
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Show data table
-                st.dataframe(
-                    df_sorted[['Bus', 'Total']],
-                    hide_index=True,
-                    use_container_width=True
-                )
-            
-            with tab3:
                 st.subheader("Process Time Variability")
                 
                 # Boxplot
@@ -204,7 +209,7 @@ def time_analysis_page(df):
                     use_container_width=True
                 )
             
-            with tab4:
+            with tab3:
                 st.subheader("Time Spent Heatmap")
                 
                 # Create heatmap
@@ -233,7 +238,7 @@ def outlier_analysis_page(df):
         Outliers are calculated as values exceeding 1.5 times the interquartile range (IQR).
         """)
         
-        processes = df.columns[1:-1]  # Exclude Bus and Total
+        processes = [col for col in df.columns if col not in ['Bus', 'Total']]
         selected_process = st.selectbox(
             "Select Process for Outlier Analysis",
             options=processes
@@ -287,143 +292,14 @@ def outlier_analysis_page(df):
             else:
                 st.success(f"No outliers detected for {selected_process}")
 
-def report_page(df):
-    """Generate and download reports"""
-    st.title("📊 Generate Report")
-    
-    if df is not None:
-        st.markdown("""
-        Generate a comprehensive report of the analysis with selected visualizations.
-        """)
-        
-        # Report options
-        col1, col2 = st.columns(2)
-        with col1:
-            include_avg = st.checkbox("Include Average Time Chart", True)
-            include_total = st.checkbox("Include Total per Bus Chart", True)
-        with col2:
-            include_variability = st.checkbox("Include Variability Analysis", True)
-            include_outliers = st.checkbox("Include Outlier Analysis", True)
-        
-        # Generate report
-        if st.button("Generate Report"):
-            with st.spinner("Generating report..."):
-                time.sleep(2)  # Simulate processing time
-                
-                report_content = f"""
-                <html>
-                    <head>
-                        <title>Process Time Analysis Report</title>
-                        <style>
-                            body {{ font-family: Arial, sans-serif; margin: 2rem; }}
-                            h1 {{ color: #2c3e50; }}
-                            .chart {{ margin-bottom: 2rem; }}
-                            table {{ border-collapse: collapse; width: 100%; margin-bottom: 1rem; }}
-                            th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-                            th {{ background-color: #f2f2f2; }}
-                        </style>
-                    </head>
-                    <body>
-                        <h1>Process Time Analysis Report</h1>
-                        <p>Generated on {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-                        
-                        <h2>Dataset Overview</h2>
-                        <p>Total buses analyzed: {len(df)}</p>
-                        <p>Total processes tracked: {len(df.columns) - 2}</p>
-                        <p>Total man-hours recorded: {df['Total Man-Hours'].sum():,.1f}</p>
-                """
-                
-                if include_avg:
-                    avg_times = df.drop(columns=['Bus', 'Total Man-Hours']).mean().sort_values(ascending=False)
-                    report_content += f"""
-                    <h2>Average Time per Process</h2>
-                    <div class="chart">
-                        <img src="data:image/png;base64,{avg_time_chart_to_base64(avg_times)}" width="800">
-                    </div>
-                    """
-                
-                if include_total:
-                    df_sorted = df[['Bus', 'Total Man-Hours']].sort_values(by='Bus')
-                    report_content += f"""
-                    <h2>Total Man-Hours per Bus</h2>
-                    <div class="chart">
-                        <img src="data:image/png;base64,{total_time_chart_to_base64(df_sorted)}" width="800">
-                    </div>
-                    """
-                
-                report_content += """
-                    </body>
-                </html>
-                """
-                
-                # Create download link
-                st.success("Report generated successfully!")
-                st.download_button(
-                    label="Download Report (HTML)",
-                    data=report_content,
-                    file_name="process_time_analysis_report.html",
-                    mime="text/html"
-                )
-
-def avg_time_chart_to_base64(avg_times):
-    """Helper function to convert avg time chart to base64"""
-    fig, ax = plt.subplots(figsize=(10, 6))
-    avg_times.plot(kind='barh', color='skyblue', ax=ax)
-    ax.set_title('Average Time per Process')
-    ax.set_xlabel('Hours')
-    ax.grid(axis='x')
-    
-    buf = BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight")
-    plt.close(fig)
-    return base64.b64encode(buf.getvalue()).decode("utf-8")
-
-def total_time_chart_to_base64(df_sorted):
-    """Helper function to convert total time chart to base64"""
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.bar(df_sorted['Bus'].astype(str), df_sorted['Total Man-Hours'], color='skyblue')
-    ax.set_title('Total Man-Hours per Bus')
-    ax.set_xlabel('Bus Number')
-    ax.set_ylabel('Total Man-Hours')
-    plt.xticks(rotation=45)
-    ax.grid(axis='y')
-    
-    buf = BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight")
-    plt.close(fig)
-    return base64.b64encode(buf.getvalue()).decode("utf-8")
-
 # Main app logic
 def main():
     # Sidebar navigation
     st.sidebar.title("Navigation")
     page = st.sidebar.radio(
         "Go to",
-        ["Overview", "Time Analysis", "Outlier Detection", "Generate Report"]
+        ["Overview", "Time Analysis", "Outlier Detection"]
     )
-    
-    # Theme selector
-    st.sidebar.markdown("---")
-    theme = st.sidebar.selectbox("Theme", ["Light", "Dark"])
-    if theme == "Dark":
-        st.markdown("""
-        <style>
-            .main {
-                background-color: #1a1a1a;
-                color: white;
-            }
-            .sidebar .sidebar-content {
-                background-color: #2d2d2d;
-            }
-            .metric-card {
-                background-color: #2d2d2d;
-                color: white;
-            }
-            h1, h2, h3, h4, h5, h6 {
-                color: white !important;
-            }
-        </style>
-        """, unsafe_allow_html=True)
     
     # File uploader in main content area
     st.sidebar.title("Data Upload")
@@ -440,8 +316,6 @@ def main():
         time_analysis_page(df)
     elif page == "Outlier Detection":
         outlier_analysis_page(df)
-    elif page == "Generate Report":
-        report_page(df)
 
 if __name__ == "__main__":
     main()
