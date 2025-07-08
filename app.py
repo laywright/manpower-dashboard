@@ -8,7 +8,7 @@ from matplotlib import cm
 
 # Set page config
 st.set_page_config(
-    page_title="Bus Maintenance Process Analysis",
+    page_title="Body Process Analysis",
     page_icon="🚌",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -40,10 +40,9 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # App title
-st.title('🚌 Bus Maintenance Process Analysis')
+st.title('🚌 Body Process Analysis')
 st.markdown("""
-This dashboard analyzes the time spent on various maintenance processes across different buses.
-Use the controls in the sidebar to filter and explore the data.
+This dashboard analyzes the time spent on various processes across different buses.
 """)
 
 # File upload
@@ -77,7 +76,7 @@ if uploaded_file is not None:
             "📊 Overview", 
             "⏱️ Process Times", 
             "🚌 Bus Analysis", 
-            "🔍 Deep Dive"
+            "🔍 Heat map and correlation"
         ])
         
         with tab1:
