@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import seaborn as sns
 from io import BytesIO
+import base64
 import time
 
 # Set page config
@@ -48,11 +49,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_data
-def load_data():
-    """Load and preprocess the data with caching"""
+def load_data(uploaded_file):
+    """Load and preprocess the data"""
     try:
-        uploaded_file = st.file_uploader("Upload Excel File", type=["xlsx"])
         if uploaded_file is not None:
             df = pd.read_excel(uploaded_file, sheet_name='Analysis')
             
@@ -63,12 +62,16 @@ def load_data():
             # Calculate additional metrics
             df['Total Man-Hours'] = df.drop(columns='Bus').sum(axis=1)
             return df
-        else:
-            st.warning("Please upload an Excel file to proceed.")
-            return None
+        return None
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return None
+
+@st.cache_data
+def process_data(df):
+    """Cache data processing operations"""
+    # Any heavy data processing would go here
+    return df
 
 def overview_page(df):
     """Dashboard overview page with key metrics"""
@@ -307,10 +310,6 @@ def report_page(df):
             with st.spinner("Generating report..."):
                 time.sleep(2)  # Simulate processing time
                 
-                # Create a PDF or HTML report
-                # In a real implementation, you would use libraries like weasyprint or pdfkit
-                # Here we'll create a downloadable HTML file as an example
-                
                 report_content = f"""
                 <html>
                     <head>
@@ -426,8 +425,13 @@ def main():
         </style>
         """, unsafe_allow_html=True)
     
-    # Load data
-    df = load_data()
+    # File uploader in main content area
+    st.sidebar.title("Data Upload")
+    uploaded_file = st.sidebar.file_uploader("Upload Excel File", type=["xlsx"])
+    
+    # Load and process data
+    raw_data = load_data(uploaded_file)
+    df = process_data(raw_data) if raw_data is not None else None
     
     # Display selected page
     if page == "Overview":
