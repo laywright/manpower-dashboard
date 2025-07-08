@@ -1,321 +1,294 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import seaborn as sns
-from io import BytesIO
-import base64
-import time
+from matplotlib import cm
 
 # Set page config
 st.set_page_config(
-    page_title="Process Time Analytics",
-    page_icon="⏱️",
+    page_title="Body Process Analysis",
+    page_icon="🚌",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for styling
+# Custom CSS
 st.markdown("""
-<style>
+    <style>
     .main {
-        background-color: #f8f9fa;
+        background-color: #f5f5f5;
     }
-    .reportview-container .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
+    .stButton>button {
+        background-color: #4CAF50;
+        color: white;
+    }
+    .stSelectbox>div>div>select {
+        background-color: #e8f5e9;
+    }
+    .stSlider>div>div>div>div {
+        background-color: #4CAF50;
+    }
+    .reportview-container .markdown-text-container {
+        font-family: monospace;
     }
     .sidebar .sidebar-content {
-        background-color: #e9ecef;
+        background-color: #e8f5e9;
     }
-    h1 {
-        color: #2c3e50;
-        border-bottom: 2px solid #2c3e50;
-        padding-bottom: 0.3rem;
-    }
-    .metric-card {
-        background-color: white;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        margin-bottom: 1rem;
-    }
-    .stDataFrame {
-        border-radius: 0.5rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-</style>
-""", unsafe_allow_html=True)
+    </style>
+    """, unsafe_allow_html=True)
 
-def load_data(uploaded_file):
-    """Load and preprocess the data"""
+# App title
+st.title('🚌 Body Process Analysis')
+st.markdown("""
+This dashboard analyzes the time spent on various processes across different buses.
+""")
+
+# File upload
+uploaded_file = st.sidebar.file_uploader("Upload Excel File", type=["xlsx"])
+
+if uploaded_file is not None:
     try:
-        if uploaded_file is not None:
-            df = pd.read_excel(uploaded_file, sheet_name='Analysis')
-            
-            # Data cleaning
+        # Load data
+        @st.cache_data
+        def load_data(file):
+            df = pd.read_excel(file, sheet_name='Analysis')
             df.dropna(how='all', inplace=True)
             df.rename(columns={df.columns[0]: 'Bus'}, inplace=True)
-            
-            # Calculate additional metrics
-            process_columns = [col for col in df.columns if col != 'Bus']
-            df['Total'] = df[process_columns].sum(axis=1)
             return df
-        return None
-    except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        return None
-
-@st.cache_data
-def process_data(df):
-    """Cache data processing operations"""
-    return df
-
-def overview_page(df):
-    """Dashboard overview page with key metrics"""
-    st.title("⏱️ Process Time Analytics Dashboard")
-    
-    if df is not None:
-        # Summary Statistics at the top
-        st.subheader("Summary Statistics")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Buses Analyzed", len(df))
-        with col2:
-            st.metric("Total Processes Tracked", len(df.columns) - 2)  # Exclude Bus and Total
-        with col3:
-            st.metric("Total Hours Recorded", f"{df['Total'].sum():,.1f}")
         
-        st.markdown("---")
+        df = load_data(uploaded_file)
         
-        # Overview Statistics
-        st.subheader("Overview Statistics")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("#### Data Preview")
-            st.dataframe(df.head(), use_container_width=True)
-            
-        with col2:
-            st.markdown("#### Descriptive Statistics")
-            st.dataframe(df.describe(), use_container_width=True)
-        
-        # Detailed Man-Hours by Bus (Dropdown)
-        st.markdown("---")
-        st.subheader("Detailed Hours by Bus")
-        
-        selected_bus = st.selectbox(
-            "Select Bus to View Detailed Hours",
-            options=df['Bus'].unique()
+        # Sidebar filters
+        st.sidebar.header("Filters")
+        selected_buses = st.sidebar.multiselect(
+            "Select Buses to Display",
+            options=df['Bus'].unique(),
+            default=df['Bus'].unique()
         )
         
-        if selected_bus:
-            bus_data = df[df['Bus'] == selected_bus].drop(columns=['Bus', 'Total'])
-            bus_data = bus_data.T.reset_index()
-            bus_data.columns = ['Process', 'Hours']
-            
-            st.dataframe(
-                bus_data.sort_values('Hours', ascending=False),
-                hide_index=True,
-                use_container_width=True
-            )
-            
-            # Visualization of selected bus
-            fig = px.bar(
-                bus_data.sort_values('Hours', ascending=True),
-                x='Hours',
-                y='Process',
-                orientation='h',
-                title=f"Process Hours for Bus {selected_bus}",
-                labels={'Hours': 'Hours', 'Process': 'Process'},
-                height=500
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-def time_analysis_page(df):
-    """Detailed time analysis visualizations"""
-    st.title("🕒 Time Distribution Analysis")
-    
-    if df is not None:
-        # Process selection
-        processes = [col for col in df.columns if col not in ['Bus', 'Total']]
-        selected_processes = st.multiselect(
-            "Select Processes to Analyze",
-            options=processes,
-            default=processes[:3]
-        )
+        # Filter data based on selection
+        filtered_df = df[df['Bus'].isin(selected_buses)]
         
-        if selected_processes:
-            tab1, tab2, tab3 = st.tabs([
-                "Average Time", 
-                "Variability", 
-                "Heatmap"
-            ])
+        # Main tabs
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📊 Overview", 
+            "⏱️ Process Times", 
+            "🚌 Bus Analysis", 
+            "🔍 Heat map and correlation"
+        ])
+        
+        with tab1:
+            st.header("Overview Statistics")
             
-            with tab1:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader("Data Preview")
+                st.dataframe(filtered_df.head(), use_container_width=True)
+                
+            with col2:
+                st.subheader("Summary Statistics")
+                st.dataframe(filtered_df.describe(), use_container_width=True)
+            
+            st.subheader("Total Man-Hours per Bus")
+            
+            # Calculate total man-hours
+            filtered_df['Total Man-Hours'] = filtered_df.drop(columns='Bus').sum(axis=1)
+            df_sorted = filtered_df[['Bus', 'Total Man-Hours']].sort_values(by='Bus')
+            
+            # Print man-hours in a formatted way
+            st.write("### Detailed Man-Hours by Bus")
+            for index, row in df_sorted.iterrows():
+                st.write(f"🚌 **Bus {row['Bus']}:** {row['Total Man-Hours']:.2f} hours")
+            
+            # Create toggle to show all buses in table format
+            show_table = st.toggle("Show Table View", value=False)
+            if show_table:
+                st.dataframe(
+                    df_sorted.set_index('Bus').style.format("{:.2f}"),
+                    use_container_width=True
+                )
+            
+            # Create the visualization
+            fig, ax = plt.subplots(figsize=(12, 6))
+            bars = ax.bar(
+                df_sorted['Bus'].astype(str), 
+                df_sorted['Total Man-Hours'], 
+                color='skyblue'
+            )
+            
+            # Add value labels on top of bars
+            for bar in bars:
+                height = bar.get_height()
+                ax.annotate(
+                    f'{height:.1f}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3),
+                    textcoords="offset points",
+                    ha='center', 
+                    va='bottom',
+                    fontsize=9
+                )
+            
+            ax.set_title('Total Man-Hours per Bus', pad=20)
+            ax.set_xlabel('Bus Number', labelpad=10)
+            ax.set_ylabel('Total Man-Hours', labelpad=10)
+            ax.tick_params(axis='x', rotation=45)
+            ax.grid(axis='y', linestyle='--', alpha=0.7)
+            plt.tight_layout()
+            st.pyplot(fig)
+            
+            # Add summary statistics in columns
+            st.subheader("Summary Statistics")
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Total Buses", len(df_sorted))
+            col2.metric(
+                "Average", 
+                f"{df_sorted['Total Man-Hours'].mean():.1f} hours"
+            )
+            col3.metric(
+                "Highest", 
+                f"{df_sorted['Total Man-Hours'].max():.1f} hours (Bus {df_sorted.loc[df_sorted['Total Man-Hours'].idxmax(), 'Bus']})"
+            )
+            col4.metric(
+                "Lowest", 
+                f"{df_sorted['Total Man-Hours'].min():.1f} hours (Bus {df_sorted.loc[df_sorted['Total Man-Hours'].idxmin(), 'Bus']})"
+            )
+            
+        with tab2:
+            st.header("Process Time Analysis")
+            
+            avg_times = filtered_df.drop(columns='Bus').mean().sort_values(ascending=False)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
                 st.subheader("Average Time per Process")
-                avg_times = df[selected_processes].mean().sort_values(ascending=False)
+                fig, ax = plt.subplots(figsize=(10, 6))
+                avg_times.plot(kind='bar', color='skyblue', ax=ax)
+                ax.set_title('Average Time Spent per Process (in Hours)')
+                ax.set_ylabel('Average Hours')
+                ax.tick_params(axis='x', rotation=90)
+                ax.grid(axis='y')
+                st.pyplot(fig)
                 
-                fig = px.bar(
-                    avg_times,
-                    x=avg_times.values,
-                    y=avg_times.index,
-                    orientation='h',
-                    color=avg_times.values,
-                    color_continuous_scale='Blues',
-                    labels={'x': 'Average Hours', 'y': 'Process'},
-                    height=500
-                )
-                fig.update_layout(
-                    title="Average Time Spent per Process (in Hours)",
-                    xaxis_title="Average Hours",
-                    yaxis_title="Process",
-                    coloraxis_showscale=False
-                )
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Show data table
-                st.dataframe(
-                    avg_times.reset_index().rename(columns={'index': 'Process', 0: 'Average Hours'}),
-                    hide_index=True,
-                    use_container_width=True
-                )
-            
-            with tab2:
+            with col2:
                 st.subheader("Process Time Variability")
+                std_per_process = filtered_df.drop(columns='Bus').std().sort_values(ascending=False)
+                st.dataframe(std_per_process.rename("Standard Deviation"), use_container_width=True)
+                st.caption("Higher values indicate more inconsistency in process times")
+            
+            st.subheader("Process Time Distribution")
+            fig, ax = plt.subplots(figsize=(12, 6))
+            sns.boxplot(data=filtered_df.drop(columns='Bus'), orient='h', palette='Set2', ax=ax)
+            ax.set_title('Variation in Process Times Across Buses (Boxplot)')
+            ax.set_xlabel('Hours')
+            ax.set_ylabel('Process')
+            ax.grid(axis='x')
+            st.pyplot(fig)
+            
+        with tab3:
+            st.header("Bus-Specific Analysis")
+            
+            selected_bus = st.selectbox(
+                "Select a Bus to Analyze",
+                options=filtered_df['Bus'].unique()
+            )
+            
+            bus_data = filtered_df[filtered_df['Bus'] == selected_bus].drop(columns='Bus').T
+            bus_data.columns = ['Hours']
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.subheader(f"Process Times for Bus {selected_bus}")
+                fig, ax = plt.subplots(figsize=(8, 8))
+                bus_data.plot(kind='pie', y='Hours', autopct='%1.1f%%', ax=ax, legend=False)
+                ax.set_ylabel('')
+                st.pyplot(fig)
                 
-                # Boxplot
-                fig = px.box(
-                    df[selected_processes],
-                    orientation='h',
-                    points="all",
-                    height=500
-                )
-                fig.update_layout(
-                    title="Variation in Process Times Across Buses",
-                    xaxis_title="Hours",
-                    yaxis_title="Process"
-                )
-                st.plotly_chart(fig, use_container_width=True)
+            with col2:
+                st.subheader(f"Time Breakdown for Bus {selected_bus}")
+                st.dataframe(bus_data.sort_values('Hours', ascending=False), use_container_width=True)
                 
-                # Standard deviation
-                st.subheader("Standard Deviation per Process")
-                std_dev = df[selected_processes].std().sort_values(ascending=False)
+                # Compare to average
+                avg_data = filtered_df.drop(columns='Bus').mean()
+                comparison = pd.DataFrame({
+                    'Bus Time': bus_data['Hours'],
+                    'Average Time': avg_data
+                })
+                comparison['Difference'] = comparison['Bus Time'] - comparison['Average Time']
+                st.write("Comparison to Average:")
+                st.dataframe(comparison, use_container_width=True)
+                
+        with tab4:
+            st.header("Deep Dive Analysis")
+            
+            st.subheader("Heatmap of Process Times")
+            fig, ax = plt.subplots(figsize=(14, 8))
+            sns.heatmap(
+                filtered_df.set_index('Bus'), 
+                cmap='YlGnBu', 
+                linewidths=0.5, 
+                linecolor='gray', 
+                annot=True, 
+                fmt=".1f",
+                ax=ax
+            )
+            ax.set_title('Time Spent on Each Process per Bus (Hours)')
+            ax.set_xlabel('Process')
+            ax.set_ylabel('Bus')
+            st.pyplot(fig)
+            
+            # Outlier detection
+            st.subheader("Outlier Detection")
+            process_data = filtered_df.drop(columns='Bus')
+            thresholds = process_data.mean() + 1.5 * process_data.std()
+            outliers = (process_data > thresholds).stack()
+            high_usage = outliers[outliers].reset_index()
+            high_usage.columns = ['Bus Index', 'Process', 'Flag']
+            high_usage['Bus'] = filtered_df['Bus'].iloc[high_usage['Bus Index']].values
+            
+            if not high_usage.empty:
+                st.warning("🚨 Buses with Unusually High Time on Certain Processes:")
+                for _, row in high_usage.iterrows():
+                    st.write(f"- Bus {row['Bus']} spent unusually high time on '{row['Process']}'")
+                    
+                # Show outliers in a table
                 st.dataframe(
-                    std_dev.reset_index().rename(columns={'index': 'Process', 0: 'Std Dev'}),
-                    hide_index=True,
+                    high_usage[['Bus', 'Process']].rename(columns={
+                        'Bus': 'Bus Number',
+                        'Process': 'Process with High Time'
+                    }),
                     use_container_width=True
                 )
-            
-            with tab3:
-                st.subheader("Time Spent Heatmap")
-                
-                # Create heatmap
-                fig = px.imshow(
-                    df[selected_processes],
-                    x=selected_processes,
-                    y=df['Bus'],
-                    color_continuous_scale='YlGnBu',
-                    labels=dict(x="Process", y="Bus", color="Hours"),
-                    aspect="auto"
-                )
-                fig.update_layout(
-                    title="Time Spent on Each Process per Bus (Hours)",
-                    xaxis_title="Process",
-                    yaxis_title="Bus"
-                )
-                st.plotly_chart(fig, use_container_width=True)
-
-def outlier_analysis_page(df):
-    """Identify and analyze outliers in the data"""
-    st.title("🚨 Outlier Detection")
-    
-    if df is not None:
-        st.markdown("""
-        This section identifies buses that spent unusually high time on specific processes.
-        Outliers are calculated as values exceeding 1.5 times the interquartile range (IQR).
-        """)
-        
-        processes = [col for col in df.columns if col not in ['Bus', 'Total']]
-        selected_process = st.selectbox(
-            "Select Process for Outlier Analysis",
-            options=processes
-        )
-        
-        if selected_process:
-            # Calculate thresholds
-            q1 = df[selected_process].quantile(0.25)
-            q3 = df[selected_process].quantile(0.75)
-            iqr = q3 - q1
-            upper_threshold = q3 + 1.5 * iqr
-            
-            # Identify outliers
-            outliers = df[df[selected_process] > upper_threshold]
-            
-            if not outliers.empty:
-                st.warning(f"Found {len(outliers)} outliers for {selected_process}")
-                
-                # Show outlier details
-                st.subheader("Outlier Details")
-                st.dataframe(
-                    outliers[['Bus', selected_process]].sort_values(
-                        by=selected_process, ascending=False
-                    ),
-                    use_container_width=True
-                )
-                
-                # Visualization
-                fig = px.scatter(
-                    df,
-                    x='Bus',
-                    y=selected_process,
-                    color=selected_process,
-                    color_continuous_scale='Reds',
-                    labels={'Bus': 'Bus Number', selected_process: 'Hours'},
-                    height=500
-                )
-                fig.add_hline(
-                    y=upper_threshold,
-                    line_dash="dash",
-                    line_color="red",
-                    annotation_text="Outlier Threshold",
-                    annotation_position="top right"
-                )
-                fig.update_layout(
-                    title=f"Outlier Detection for {selected_process}",
-                    xaxis_title="Bus Number",
-                    yaxis_title="Hours"
-                )
-                st.plotly_chart(fig, use_container_width=True)
             else:
-                st.success(f"No outliers detected for {selected_process}")
+                st.success("✅ No significant outliers detected in process time.")
+                
+            # Correlation analysis
+            st.subheader("Process Time Correlations")
+            fig, ax = plt.subplots(figsize=(10, 8))
+            sns.heatmap(
+                process_data.corr(),
+                annot=True,
+                cmap='coolwarm',
+                center=0,
+                ax=ax
+            )
+            ax.set_title('Correlation Between Processes')
+            st.pyplot(fig)
+            
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+else:
+    st.info("ℹ️ Please upload an Excel file to begin analysis.")
+    st.markdown("""
+    ### Expected File Format:
+    - First column should contain Bus identifiers
+    - Subsequent columns should contain time values for different processes
+    - Sheet name should be 'Analysis' or you'll need to modify the code
+    """)
 
-# Main app logic
-def main():
-    # Sidebar navigation
-    st.sidebar.title("Navigation")
-    page = st.sidebar.radio(
-        "Go to",
-        ["Overview", "Time Analysis", "Outlier Detection"]
-    )
-    
-    # File uploader in main content area
-    st.sidebar.title("Data Upload")
-    uploaded_file = st.sidebar.file_uploader("Upload Excel File", type=["xlsx"])
-    
-    # Load and process data
-    raw_data = load_data(uploaded_file)
-    df = process_data(raw_data) if raw_data is not None else None
-    
-    # Display selected page
-    if page == "Overview":
-        overview_page(df)
-    elif page == "Time Analysis":
-        time_analysis_page(df)
-    elif page == "Outlier Detection":
-        outlier_analysis_page(df)
-
-if __name__ == "__main__":
-    main()
+# Add some space at the bottom
+st.markdown("<br><br>", unsafe_allow_html=True)
