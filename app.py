@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import networkx as nx
 from matplotlib import cm
 
 # Set page config
@@ -93,17 +92,69 @@ if uploaded_file is not None:
                 st.dataframe(filtered_df.describe(), use_container_width=True)
             
             st.subheader("Total Man-Hours per Bus")
-            df['Total Man-Hours'] = df.drop(columns='Bus').sum(axis=1)
-            df_sorted = df[['Bus', 'Total Man-Hours']].sort_values(by='Bus')
             
-            fig, ax = plt.subplots(figsize=(10, 6))
-            ax.bar(df_sorted['Bus'].astype(str), df_sorted['Total Man-Hours'], color='skyblue')
-            ax.set_title('Total Man-Hours per Bus')
-            ax.set_xlabel('Bus Number')
-            ax.set_ylabel('Total Man-Hours')
+            # Calculate total man-hours
+            filtered_df['Total Man-Hours'] = filtered_df.drop(columns='Bus').sum(axis=1)
+            df_sorted = filtered_df[['Bus', 'Total Man-Hours']].sort_values(by='Bus')
+            
+            # Print man-hours in a formatted way
+            st.write("### Detailed Man-Hours by Bus")
+            for index, row in df_sorted.iterrows():
+                st.write(f"🚌 **Bus {row['Bus']}:** {row['Total Man-Hours']:.2f} hours")
+            
+            # Create toggle to show all buses in table format
+            show_table = st.toggle("Show Table View", value=False)
+            if show_table:
+                st.dataframe(
+                    df_sorted.set_index('Bus').style.format("{:.2f}"),
+                    use_container_width=True
+                )
+            
+            # Create the visualization
+            fig, ax = plt.subplots(figsize=(12, 6))
+            bars = ax.bar(
+                df_sorted['Bus'].astype(str), 
+                df_sorted['Total Man-Hours'], 
+                color='skyblue'
+            )
+            
+            # Add value labels on top of bars
+            for bar in bars:
+                height = bar.get_height()
+                ax.annotate(
+                    f'{height:.1f}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3),
+                    textcoords="offset points",
+                    ha='center', 
+                    va='bottom',
+                    fontsize=9
+                )
+            
+            ax.set_title('Total Man-Hours per Bus', pad=20)
+            ax.set_xlabel('Bus Number', labelpad=10)
+            ax.set_ylabel('Total Man-Hours', labelpad=10)
             ax.tick_params(axis='x', rotation=45)
-            ax.grid(axis='y')
+            ax.grid(axis='y', linestyle='--', alpha=0.7)
+            plt.tight_layout()
             st.pyplot(fig)
+            
+            # Add summary statistics in columns
+            st.subheader("Summary Statistics")
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Total Buses", len(df_sorted))
+            col2.metric(
+                "Average", 
+                f"{df_sorted['Total Man-Hours'].mean():.1f} hours"
+            )
+            col3.metric(
+                "Highest", 
+                f"{df_sorted['Total Man-Hours'].max():.1f} hours (Bus {df_sorted.loc[df_sorted['Total Man-Hours'].idxmax(), 'Bus']})"
+            )
+            col4.metric(
+                "Lowest", 
+                f"{df_sorted['Total Man-Hours'].min():.1f} hours (Bus {df_sorted.loc[df_sorted['Total Man-Hours'].idxmin(), 'Bus']})"
+            )
             
         with tab2:
             st.header("Process Time Analysis")
