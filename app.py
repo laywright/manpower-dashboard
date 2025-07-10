@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -48,7 +46,9 @@ st.markdown("""
 
 # App title
 st.title('🚌 Body Process Analysis')
-st.markdown("This dashboard analyzes the time spent on processes across different buses.")
+st.markdown("""
+This dashboard analyzes the time spent on processes across different buses.
+""")
 
 # File upload
 uploaded_file = st.sidebar.file_uploader("Upload Excel File", type=["xlsx"])
@@ -59,15 +59,12 @@ if uploaded_file is not None:
         @st.cache_data
         def load_data(file):
             df = pd.read_excel(file, sheet_name='Analysis')
+            df.dropna(how='all', inplace=True)
+            df.rename(columns={df.columns[0]: 'Bus'}, inplace=True)
             return df
-
+        
         df = load_data(uploaded_file)
-        df.dropna(how='all', inplace=True)
-        df.rename(columns={df.columns[0]: 'Bus'}, inplace=True)
-
-        with st.expander("Preview Uploaded Data"):
-            st.dataframe(df.head(10), use_container_width=True)
-
+        
         # Sidebar filters
         st.sidebar.header("Filters")
         selected_buses = st.sidebar.multiselect(
@@ -75,68 +72,85 @@ if uploaded_file is not None:
             options=df['Bus'].unique(),
             default=df['Bus'].unique()
         )
-
-        filtered_df = df[df['Bus'].isin(selected_buses)].copy()
+        
+        # Filter data based on selection
+        filtered_df = df[df['Bus'].isin(selected_buses)]
+        
+        # Calculate total man-hours
         filtered_df['Total Man-Hours'] = filtered_df.drop(columns='Bus').sum(axis=1)
         df_sorted = filtered_df[['Bus', 'Total Man-Hours']].sort_values(by='Bus')
-
-        # Allow download
-        @st.cache_data
-        def convert_df_to_csv(df):
-            return df.to_csv(index=False).encode('utf-8')
-
-        st.sidebar.download_button(
-            "Download Filtered Data",
-            convert_df_to_csv(filtered_df),
-            "filtered_data.csv",
-            "text/csv"
-        )
-
-        tab1, tab2, tab3, tab4 = st.tabs(["📊 Overview", "⏱️ Process Times", "🚌 Bus Analysis", "🔍 Deep Dive"])
-
+        
+        # Main tabs
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "📊 Overview", 
+            "⏱️ Process Times", 
+            "🚌 Bus Analysis", 
+            "🔍 Deep Dive"
+        ])
+        
         with tab1:
             st.header("Overview Dashboard")
-
+            
+            # Metrics Row
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.markdown('<div class="metric-box">', unsafe_allow_html=True)
                 st.metric("Total Buses", len(filtered_df))
                 st.markdown('</div>', unsafe_allow_html=True)
+                
             with col2:
                 st.markdown('<div class="metric-box">', unsafe_allow_html=True)
                 st.metric("Average Hours", f"{filtered_df['Total Man-Hours'].mean():.1f}")
                 st.markdown('</div>', unsafe_allow_html=True)
+                
             with col3:
                 st.markdown('<div class="metric-box">', unsafe_allow_html=True)
                 st.metric("Total Hours", f"{filtered_df['Total Man-Hours'].sum():.1f}")
                 st.markdown('</div>', unsafe_allow_html=True)
-
+            
+            # Interactive Bus Hours Selector
             st.subheader("Bus Hours Explorer")
+            
+            # Toggle to show all buses
             show_all = st.toggle("Show All Buses", value=False)
-            bus_hours = df_sorted if show_all else df_sorted.head(5)
-
+            
+            if show_all:
+                bus_hours = df_sorted
+            else:
+                bus_hours = df_sorted.head(5)
+                st.caption(f"Showing first 5 of {len(df_sorted)} buses")
+            
+            # Plotly interactive bar chart
             fig = px.bar(
                 bus_hours,
                 x='Bus',
                 y='Total Man-Hours',
                 color='Total Man-Hours',
                 color_continuous_scale='Blues',
+                labels={'Bus': 'Bus Number', 'Total Man-Hours': 'Total Hours'},
                 height=500
             )
-            fig.update_layout(title="Total Hours per Bus", xaxis_title="Bus", yaxis_title="Hours")
+            fig.update_layout(
+                title="Total Hours per Bus",
+                xaxis_title="Bus Number",
+                yaxis_title="Total Hours",
+                hovermode="x unified"
+            )
             st.plotly_chart(fig, use_container_width=True)
-
+            
+            # Data table
             st.dataframe(
                 bus_hours.set_index('Bus').style.background_gradient(cmap='Blues'),
                 use_container_width=True
             )
-
+            
         with tab2:
             st.header("Process Time Analysis")
+            
             avg_times = filtered_df.drop(columns=['Bus', 'Total Man-Hours']).mean().sort_values(ascending=False)
-
+            
             col1, col2 = st.columns(2)
-
+            
             with col1:
                 st.subheader("Average Time per Process")
                 fig = px.bar(
@@ -146,24 +160,39 @@ if uploaded_file is not None:
                     orientation='h',
                     color=avg_times.values,
                     color_continuous_scale='Teal',
+                    labels={'x': 'Average Hours', 'y': 'Process'},
                     height=500
                 )
+                fig.update_layout(
+                    title="Average Time Spent per Process (Hours)",
+                    xaxis_title="Average Hours",
+                    yaxis_title="Process",
+                    coloraxis_showscale=False
+                )
                 st.plotly_chart(fig, use_container_width=True)
-
+                
             with col2:
                 st.subheader("Process Time Variability")
-                stds = filtered_df.drop(columns=['Bus', 'Total Man-Hours']).std().sort_values(ascending=False)
+                std_per_process = filtered_df.drop(columns=['Bus', 'Total Man-Hours']).std().sort_values(ascending=False)
+                
                 fig = px.bar(
-                    stds,
-                    x=stds.values,
-                    y=stds.index,
+                    std_per_process,
+                    x=std_per_process.values,
+                    y=std_per_process.index,
                     orientation='h',
-                    color=stds.values,
+                    color=std_per_process.values,
                     color_continuous_scale='Oranges',
+                    labels={'x': 'Standard Deviation', 'y': 'Process'},
                     height=500
                 )
+                fig.update_layout(
+                    title="Process Time Variability",
+                    xaxis_title="Standard Deviation",
+                    yaxis_title="Process",
+                    coloraxis_showscale=False
+                )
                 st.plotly_chart(fig, use_container_width=True)
-
+            
             st.subheader("Process Time Distribution")
             fig = px.box(
                 filtered_df.drop(columns=['Bus', 'Total Man-Hours']),
@@ -171,18 +200,27 @@ if uploaded_file is not None:
                 points="all",
                 height=600
             )
+            fig.update_layout(
+                title="Distribution of Process Times Across Buses",
+                xaxis_title="Hours",
+                yaxis_title="Process"
+            )
             st.plotly_chart(fig, use_container_width=True)
-
+            
         with tab3:
             st.header("Bus-Specific Analysis")
-            selected_bus = st.selectbox("Select a Bus to Analyze", options=filtered_df['Bus'].unique())
-
+            
+            selected_bus = st.selectbox(
+                "Select a Bus to Analyze",
+                options=filtered_df['Bus'].unique()
+            )
+            
             bus_data = filtered_df[filtered_df['Bus'] == selected_bus].drop(columns=['Bus', 'Total Man-Hours']).T
             bus_data.columns = ['Hours']
             bus_data = bus_data.sort_values('Hours', ascending=False)
-
+            
             col1, col2 = st.columns(2)
-
+            
             with col1:
                 st.subheader(f"Process Distribution for Bus {selected_bus}")
                 fig = px.pie(
@@ -193,10 +231,17 @@ if uploaded_file is not None:
                     height=500,
                     color_discrete_sequence=px.colors.sequential.Teal_r
                 )
+                fig.update_traces(textposition='inside', textinfo='percent+label')
+                fig.update_layout(
+                    title=f"Time Distribution for Bus {selected_bus}",
+                    showlegend=False
+                )
                 st.plotly_chart(fig, use_container_width=True)
-
+                
             with col2:
                 st.subheader(f"Time Breakdown for Bus {selected_bus}")
+                
+                # Horizontal bar chart
                 fig = px.bar(
                     bus_data.reset_index(),
                     x='Hours',
@@ -204,10 +249,18 @@ if uploaded_file is not None:
                     orientation='h',
                     color='Hours',
                     color_continuous_scale='Teal',
+                    labels={'index': 'Process', 'Hours': 'Hours'},
                     height=500
                 )
+                fig.update_layout(
+                    title=f"Process Hours for Bus {selected_bus}",
+                    xaxis_title="Hours",
+                    yaxis_title="Process",
+                    coloraxis_showscale=False
+                )
                 st.plotly_chart(fig, use_container_width=True)
-
+                
+                # Compare to average
                 avg_data = filtered_df.drop(columns=['Bus', 'Total Man-Hours']).mean()
                 comparison = pd.DataFrame({
                     'Process': bus_data.index,
@@ -215,27 +268,36 @@ if uploaded_file is not None:
                     'Average Hours': avg_data
                 })
                 comparison['Difference'] = comparison['Bus Hours'] - comparison['Average Hours']
-
+                
                 st.dataframe(
                     comparison.style.background_gradient(
-                        cmap='RdBu',
+                        cmap='RdBu', 
                         subset=['Difference'],
                         vmin=-comparison['Difference'].abs().max(),
                         vmax=comparison['Difference'].abs().max()
                     ),
                     use_container_width=True
                 )
-
+                
         with tab4:
             st.header("Deep Dive Analysis")
+            
             st.subheader("Heatmap of Process Times")
             fig = px.imshow(
                 filtered_df.set_index('Bus').drop(columns='Total Man-Hours'),
                 color_continuous_scale='YlGnBu',
+                labels=dict(x="Process", y="Bus", color="Hours"),
+                aspect="auto",
                 height=600
             )
+            fig.update_layout(
+                title="Time Spent on Each Process per Bus (Hours)",
+                xaxis_title="Process",
+                yaxis_title="Bus"
+            )
             st.plotly_chart(fig, use_container_width=True)
-
+            
+            # Outlier detection
             st.subheader("Outlier Detection")
             process_data = filtered_df.drop(columns=['Bus', 'Total Man-Hours'])
             thresholds = process_data.mean() + 1.5 * process_data.std()
@@ -243,9 +305,11 @@ if uploaded_file is not None:
             high_usage = outliers[outliers].reset_index()
             high_usage.columns = ['Bus Index', 'Process', 'Flag']
             high_usage['Bus'] = filtered_df['Bus'].iloc[high_usage['Bus Index']].values
-
+            
             if not high_usage.empty:
                 st.warning("🚨 Buses with Unusually High Time on Certain Processes:")
+                
+                # Interactive scatter plot
                 fig = px.scatter(
                     high_usage,
                     x='Bus',
@@ -255,28 +319,40 @@ if uploaded_file is not None:
                     hover_name='Bus',
                     height=500
                 )
+                fig.update_layout(
+                    title="Outlier Processes by Bus",
+                    xaxis_title="Bus",
+                    yaxis_title="Process"
+                )
                 st.plotly_chart(fig, use_container_width=True)
-                st.dataframe(high_usage[['Bus', 'Process']].rename(columns={
-                    'Bus': 'Bus Number', 'Process': 'Process with High Time'
-                }), use_container_width=True)
+                
+                # Outlier table
+                st.dataframe(
+                    high_usage[['Bus', 'Process']].rename(columns={
+                        'Bus': 'Bus Number',
+                        'Process': 'Process with High Time'
+                    }),
+                    use_container_width=True
+                )
             else:
-                st.success("✅ No significant outliers detected.")
-
+                st.success("✅ No significant outliers detected in process time.")
+                
+            # Correlation analysis
             st.subheader("Process Time Correlations")
-            corr = process_data.corr()
-            fig = px.imshow(corr, color_continuous_scale='RdBu', zmin=-1, zmax=1, height=600)
+            fig = px.imshow(
+                process_data.corr(),
+                color_continuous_scale='RdBu',
+                zmin=-1,
+                zmax=1,
+                height=600
+            )
+            fig.update_layout(
+                title="Correlation Between Processes",
+                xaxis_title="Process",
+                yaxis_title="Process"
+            )
             st.plotly_chart(fig, use_container_width=True)
-
-            # Show top correlated pairs
-            st.subheader("Top Process Correlation Pairs")
-            strong_pairs = corr.where(np.triu(np.ones(corr.shape), k=1).astype(bool))
-            top_pairs = strong_pairs.unstack().dropna().abs().sort_values(ascending=False).head(5)
-            st.table(top_pairs.reset_index().rename(columns={
-                'level_0': 'Process A',
-                'level_1': 'Process B',
-                0: 'Correlation'
-            }))
-
+            
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
 else:
@@ -284,9 +360,9 @@ else:
     st.markdown("""
     ### Expected File Format:
     - First column should contain Bus identifiers
-    - Other columns should contain time values for processes
-    - Sheet name should be 'Analysis'
+    - Subsequent columns should contain time values for different processes
+    - Sheet name should be 'Analysis' or you'll need to modify the code
     """)
 
-# Space at bottom
+# Add some space at the bottom
 st.markdown("<br><br>", unsafe_allow_html=True)
