@@ -1,4 +1,3 @@
-# 🔁 [No change in imports or page config]
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -34,7 +33,6 @@ if uploaded_file is not None:
 
     tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Process time analysis", "🚨Outliers", "Human resource allocation gaps"])
 
-    # ------------------ Summary ------------------
     with tab1:
         st.subheader("Total manhours summary")
         st.metric("Average total manhours per bus", f"{avg_manhours:.1f} hrs")
@@ -56,7 +54,6 @@ if uploaded_file is not None:
         st.download_button("📥 Download total manhours CSV", total_df.to_csv(index=False).encode(),
                            file_name="total_manhours.csv", mime='text/csv')
 
-    # ------------------ Process Time Analysis ------------------
     with tab2:
         st.subheader("Average time per process (Overall)")
         process_avg_df = df[['Process', 'Avg_Time_Per_Process']].dropna()
@@ -87,7 +84,7 @@ if uploaded_file is not None:
         fig2b.update_layout(xaxis_tickangle=-45, width=1200, height=600)
         st.plotly_chart(fig2b, use_container_width=True)
 
-        # 📊 Station-level toggle graph
+        # 🟩 Station-specific breakdown
         selected_station = st.selectbox("Select Station for Station-wise Process Averages", station_options, key='station_avg')
         station_avg_df = df[df['Station'] == selected_station][['Process', 'Avg_Time_Per_Process']]
         station_avg_df = station_avg_df.dropna().sort_values(by='Avg_Time_Per_Process', ascending=False)
@@ -99,7 +96,6 @@ if uploaded_file is not None:
         fig_station.update_layout(xaxis_tickangle=-45, width=1200, height=600, hovermode="x unified")
         st.plotly_chart(fig_station, use_container_width=True)
 
-    # ------------------ Outliers ------------------
     with tab3:
         st.subheader("🚨 Outlier Processes Table")
         top_var_df = df.nlargest(7, 'Variance')[['Station', 'Process']].drop_duplicates()
@@ -119,7 +115,6 @@ if uploaded_file is not None:
         st.download_button("📥 Download Outlier Table CSV", outliers_table_df.to_csv(index=False).encode(),
                            file_name="outlier_table.csv", mime='text/csv')
 
-    # ------------------ HR Allocation Gaps ------------------
     with tab4:
         st.subheader("Human resource allocation gaps")
         gap_df = df[['Station', 'Process', 'Avg_Manhours', 'Number of people', 'Manhours per person']]
@@ -150,4 +145,7 @@ if uploaded_file is not None:
 
         st.markdown("**🚨 Processes with highest Human resource allocation gaps:**")
         for _, row in gap_df.head(7).iterrows():
-            st.markdown(f"• {row['Process']} ({row['Station']}): {row['Manhours per person']:.2f} hrs/person, {row['Number of people']} people
+            st.markdown(f"• {row['Process']} ({row['Station']}): {row['Manhours per person']:.2f} hrs/person, {row['Number of people']} people")
+
+else:
+    st.info("Please upload a valid Excel file to proceed.")
