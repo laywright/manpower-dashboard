@@ -78,11 +78,11 @@ if uploaded_file is not None:
         st.download_button("📥 Download process averages CSV", process_avg_df.to_csv(index=False).encode(),
                            file_name="process_avg.csv", mime='text/csv')
 
-        st.markdown("**🚨 Top 7 Time Bottlenecks:**")
+        st.markdown("**🚨 Top 7 time bottlenecks:**")
         for _, row in process_avg_df.head(7).iterrows():
             st.markdown(f"• {row['Process']}: {row['Avg_Time_Per_Process']:.1f} hrs")
 
-        bus_choice = st.selectbox("🚌 Select Bus for Process Time View", buses, key='bus_choice2')
+        bus_choice = st.selectbox("Select bus number", buses, key='bus_choice2')
         process_bus_df = df[['Process'] + [bus_choice]].dropna()
         fig2b = px.bar(process_bus_df, x='Process', y=bus_choice,
                        title=f"Time Taken per Process - {bus_choice}",
@@ -92,7 +92,7 @@ if uploaded_file is not None:
         st.plotly_chart(fig2b, use_container_width=True)
 
     with tab3:
-        st.subheader("🚨 Outliers in Time Taken per Process")
+        st.subheader("🚨 Outliers in time taken per process")
         top7_var = df.nlargest(7, 'Variance')[['Station', 'Process']]
         df_long = df.melt(id_vars=['Station', 'Process'], value_vars=bus_columns,
                           var_name='Bus', value_name='Manhours')
@@ -138,7 +138,7 @@ if uploaded_file is not None:
         st.download_button("📥 Download Human resource gaps CSV", gap_df.to_csv(index=False).encode(),
                            file_name="hr_gaps.csv", mime='text/csv')
 
-        st.markdown("**🚨 Top 7 Processes with Highest HR Allocation Gaps:**")
+        st.markdown("** Processes with highest Humen resource allocation gaps:**")
         for _, row in gap_df.head(7).iterrows():
             st.markdown(f"• {row['Process']} ({row['Station']}): {row['Manhours per person']:.2f} hrs/person, {row['Number of people']} people")
 else:
