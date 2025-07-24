@@ -30,7 +30,7 @@ if uploaded_file is not None:
     total_df = pd.DataFrame({'Bus': buses, 'Manhours': total_hours.values})
     avg_manhours = total_df['Manhours'].mean()
 
-    tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Process time analysis", "Human resource allocation gaps", "📥 Downloads"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Process time analysis", "Human resource allocation gaps"])
 
     with tab1:
         st.subheader("Total manhours summary")
@@ -49,6 +49,9 @@ if uploaded_file is not None:
         st.markdown("**🚨 Top 5 buses with highest manhours :**")
         for _, row in top5.iterrows():
             st.markdown(f"• {row['Bus']}: {row['Manhours']:.1f} manhours")
+
+        st.download_button("📥 Download total manhours CSV", total_df.to_csv(index=False).encode(),
+                           file_name="total_manhours.csv", mime='text/csv')
 
     with tab2:
         st.subheader("Average time per process (Overall)")
@@ -96,35 +99,36 @@ if uploaded_file is not None:
         else:
             st.dataframe(outliers_table_df[['Bus', 'Station', 'Process', 'Manhours', 'Avg_Manhours_Process']])
 
-    with tab3:
+  with tab4:
         st.subheader("Human resource allocation gaps")
         gap_df = df[['Station', 'Process', 'Avg_Manhours', 'Number of people', 'Manhours per person']]
         gap_df = gap_df.dropna(subset=['Process'])
         gap_df = gap_df[gap_df['Process'].str.strip() != '']
+        gap_df = gap_df.sort_values(by='Manhours per person', ascending=False)
 
-        station_gap = st.selectbox("Choose Station to Analyze HR Gaps", station_options, key='station_gap')
-        filtered_gap_df = gap_df[gap_df['Station'] == station_gap].sort_values(by='Manhours per person', ascending=False)
+        station_colors = {
+            'Trim': 'red',
+            'Logistics': 'blue',
+            'Chassis': 'purple',
+            'Body': 'orange',
+            'Metal Finish': 'teal'
+        }
 
-        # Display insights table
-        st.subheader(f"🚨 HR Allocation Gaps in {station_gap} Station")
-        st.dataframe(filtered_gap_df[['Station', 'Process', 'Manhours per person', 'Number of people']])
+        gap_df['Color'] = gap_df['Station'].map(station_colors)
 
-        # Chart visualization
-        fig4 = px.bar(filtered_gap_df, x='Process', y='Manhours per person', color='Station',
-                      title=f'HR Allocation Gaps in {station_gap}',
+        fig4 = px.bar(gap_df, x='Process', y='Manhours per person', color='Station',
+                      title='HR Allocation Gaps by Process',
                       labels={'Manhours per person': 'Manhours/Person'},
-                      text='Manhours per person',
-                      color_discrete_sequence=['green'])
+                      category_orders={"Process": gap_df['Process'].tolist()}, text='Manhours per person',
+                      color_discrete_map=station_colors)
         fig4.update_layout(xaxis_tickangle=-45, width=1200, height=600, hovermode="x unified")
         st.plotly_chart(fig4, use_container_width=True)
 
-    with tab4:
-        st.subheader("📥 Downloads")
-        st.download_button("Download total manhours CSV", total_df.to_csv(index=False).encode(), file_name="total_manhours.csv", mime='text/csv')
-        st.download_button("Download process averages CSV", process_avg_df.to_csv(index=False).encode(), file_name="process_avg.csv", mime='text/csv')
-        if not outliers_table_df.empty:
-            st.download_button("Download Outlier Table CSV", outliers_table_df.to_csv(index=False).encode(), file_name="outlier_table.csv", mime='text/csv')
-        st.download_button(f"Download HR Gaps CSV ({station_gap})", filtered_gap_df.to_csv(index=False).encode(), file_name=f"{station_gap.lower()}_hr_gaps.csv", mime='text/csv')
+        st.download_button("📥 Download Human resource gaps CSV", gap_df.to_csv(index=False).encode(),
+                           file_name="hr_gaps.csv", mime='text/csv')
 
+        st.markdown("**🚨 Processes with highest Human resource allocation gaps:**")
+        for _, row in gap_df.head(7).iterrows():
+            st.markdown(f"• {row['Process']} ({row['Station']}): {row['Manhours per person']:.2f} hrs/person, {row['Number of people']} people")
 else:
-    st.info("Please upload a valid Excel file to proceed.")
+    st.info(" Please upload a valid Excel file to proceed.")
