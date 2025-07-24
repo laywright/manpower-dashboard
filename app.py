@@ -32,7 +32,7 @@ if uploaded_file is not None:
 
     tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Process time analysis", "Human resource allocation gaps", "📥 Downloads"])
 
-    with tab1:
+   with tab1:
         st.subheader("Total manhours summary")
         st.metric("Average total manhours per bus", f"{avg_manhours:.1f} hrs")
 
@@ -50,6 +50,8 @@ if uploaded_file is not None:
         for _, row in top5.iterrows():
             st.markdown(f"• {row['Bus']}: {row['Manhours']:.1f} manhours")
 
+        st.download_button("📥 Download total manhours CSV", total_df.to_csv(index=False).encode(),
+                           file_name="total_manhours.csv", mime='text/csv')
     with tab2:
         st.subheader("Average time per process (Overall)")
         process_avg_df = df[['Process', 'Avg_Time_Per_Process']].dropna()
