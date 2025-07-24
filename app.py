@@ -36,7 +36,7 @@ if uploaded_file is not None:
     avg_manhours = total_df['Manhours'].mean()
 
     # Tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Process time analysis", "Human resource allocation gaps", "Extra Tab"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Process time analysis", "Human resource allocation gaps"])
 
     # -------------------- TAB 1 --------------------
     with tab1:
