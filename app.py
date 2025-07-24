@@ -137,18 +137,16 @@ if uploaded_file is not None:
         fig4.update_layout(xaxis_tickangle=-45, width=1200, height=600, hovermode="x unified")
         st.plotly_chart(fig4, use_container_width=True)
 
-
         # Download + Highlights
         st.download_button("📥 Download Human resource gaps CSV", gap_df.to_csv(index=False).encode(),
                            file_name="hr_gaps.csv", mime='text/csv')
 
         st.markdown("**🚨 Top 7 Processes with highest Human resource allocation gaps:**")
-top_gap_df = gap_df.head(7)[['Station', 'Process', 'Manhours per person', 'Number of people']].reset_index(drop=True)
-st.dataframe(top_gap_df.style.format({
-    'Manhours per person': '{:.2f}',
-    'Number of people': '{:.0f}'
-}))
-
+        top_gap_df = gap_df.head(7)[['Station', 'Process', 'Manhours per person', 'Number of people']].reset_index(drop=True)
+        st.dataframe(top_gap_df.style.format({
+            'Manhours per person': '{:.2f}',
+            'Number of people': '{:.0f}'
+        }))
 
 else:
     st.info("Please upload a valid Excel file to proceed.")
