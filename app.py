@@ -5,7 +5,20 @@ import plotly.express as px
 import io
 from scipy import stats
 
-st.set_page_config(page_title="Bus Manhours Dashboard", layout="wide")
+st.set_page_config(page_title="Bus Manhours Dashboard", layout="wide", page_icon="📈")
+
+# Set custom logo in sidebar
+st.markdown("""
+    <style>
+        [data-testid="stSidebar"] > div:first-child {
+            background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/512px-Google_2015_logo.svg.png');
+            background-repeat: no-repeat;
+            background-position: 20px 20px;
+            background-size: 120px;
+            padding-top: 120px;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # -----------------------------
 # Upload Excel File
@@ -14,8 +27,6 @@ st.set_page_config(page_title="Bus Manhours Dashboard", layout="wide")
 uploaded_file = st.file_uploader("Upload the Excel file", type=["xlsx"])
 if uploaded_file is not None:
     df = pd.read_excel(uploaded_file, sheet_name='Manhours')
-if file:
-    df = pd.read_excel(file, sheet_name='Manhours')
 
     # -----------------------------
     # Data Cleaning
@@ -72,9 +83,9 @@ if file:
         fig2 = px.bar(process_avg_df, x='Process', y='Avg_Time_Per_Process',
                      title='Average Time per Process Across All Buses',
                      labels={'Avg_Time_Per_Process': 'Avg Time (hrs)'},
-                     color='Avg_Time_Per_Process', color_continuous_scale='Cividis', text='Avg_Time_Per_Process')
+                     color_discrete_sequence=['green'], text='Avg_Time_Per_Process')
         fig2.update_layout(yaxis_range=[0, 30], xaxis_tickangle=-45, hovermode="x unified",
-                           coloraxis_showscale=False, width=1200, height=600)
+                           width=1200, height=600)
         st.plotly_chart(fig2, use_container_width=True)
 
         st.download_button("📥 Download Process Averages CSV", process_avg_df.to_csv(index=False).encode(),
@@ -89,7 +100,7 @@ if file:
         fig2b = px.bar(process_bus_df, x='Process', y=bus_choice,
                        title=f"Time Taken per Process - {bus_choice}",
                        labels={bus_choice: 'Manhours'},
-                       color=bus_choice, color_continuous_scale='Viridis', text=bus_choice)
+                       color_discrete_sequence=['green'], text=bus_choice)
         fig2b.update_layout(xaxis_tickangle=-45, width=1200, height=600)
         st.plotly_chart(fig2b, use_container_width=True)
 
