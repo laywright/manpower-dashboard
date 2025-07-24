@@ -38,31 +38,31 @@ if uploaded_file is not None:
     # -----------------------------
     # Tabs Layout
     # -----------------------------
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Summary", "⏱️ Process Time Analysis", "🚨 Outliers", "👷 HR Allocation Gaps"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Process time analysis", "outliers", "Human resource allocation gaps"])
 
     with tab1:
-        st.subheader("📊 Total Manhours Summary")
-        st.metric("Average Total Manhours per Bus", f"{avg_manhours:.1f} hrs")
+        st.subheader("Total manhours summary")
+        st.metric("Average total manhours per bus", f"{avg_manhours:.1f} hrs")
 
-        selected_bus = st.selectbox("🔍 View Manhours for Specific Bus", buses)
+        selected_bus = st.selectbox("View Manhours for specific bus", buses)
         st.write(f"**{selected_bus} Manhours:** {total_hours[selected_bus]:.1f} hrs")
 
-        fig1 = px.bar(total_df, x='Bus', y='Manhours', title="Total Manhours per Bus",
+        fig1 = px.bar(total_df, x='Bus', y='Manhours', title="Total manhours per bus",
                      labels={'Bus': 'Bus', 'Manhours': 'Total Manhours'},
                      color_discrete_sequence=['green'], text='Manhours')
         fig1.update_layout(hovermode="x unified")
         st.plotly_chart(fig1, use_container_width=True)
 
         top5 = total_df.sort_values(by='Manhours', ascending=False).head(5)
-        st.markdown("**🚨 Top 5 Buses with Highest Labor Demand:**")
+        st.markdown("**🚨 Top 5 buses with highest manhours :**")
         for _, row in top5.iterrows():
             st.markdown(f"• {row['Bus']}: {row['Manhours']:.1f} manhours")
 
-        st.download_button("📥 Download Total Manhours CSV", total_df.to_csv(index=False).encode(),
+        st.download_button("📥 Download total manhours CSV", total_df.to_csv(index=False).encode(),
                            file_name="total_manhours.csv", mime='text/csv')
 
     with tab2:
-        st.subheader("⏱️ Average Time per Process")
+        st.subheader(" Average time per process")
         process_avg_df = df[['Process', 'Avg_Time_Per_Process']].dropna()
         process_avg_df = process_avg_df[process_avg_df['Process'].str.strip() != '']
         process_avg_df = process_avg_df.sort_values(by='Avg_Time_Per_Process', ascending=False)
