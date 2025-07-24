@@ -5,32 +5,21 @@ import plotly.express as px
 import io
 from scipy import stats
 
-st.set_page_config(page_title="Bus Manhours Dashboard", layout="wide", page_icon="📈")
-
-# Set custom logo in sidebar
-st.markdown("""
-    <style>
-        [data-testid="stSidebar"] > div:first-child {
-            background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/512px-Google_2015_logo.svg.png');
-            background-repeat: no-repeat;
-            background-position: 20px 20px;
-            background-size: 120px;
-            padding-top: 120px;
-        }
-    </style>
-""", unsafe_allow_html=True)
+st.set_page_config(
+    page_title="BasiGo Manpower Dashboard",
+    page_icon="🚌",
+    layout="wide"
+)
 
 # -----------------------------
 # Upload Excel File
 # -----------------------------
-# 📥 File upload
+st.image("https://img.icons8.com/emoji/96/bus-emoji.png", width=80)
+st.title("🚌 BasiGo Manpower Dashboard")
+
 uploaded_file = st.file_uploader("Upload the Excel file", type=["xlsx"])
 if uploaded_file is not None:
     df = pd.read_excel(uploaded_file, sheet_name='Manhours')
-
-    # -----------------------------
-    # Data Cleaning
-    # -----------------------------
     df = df.dropna(how='all').rename(columns=lambda x: str(x).strip())
     df['Number of people'] = pd.to_numeric(df['Number of people'], errors='coerce')
     bus_columns = [col for col in df.columns if str(col).startswith('Bus')]
@@ -58,7 +47,6 @@ if uploaded_file is not None:
         selected_bus = st.selectbox("🔍 View Manhours for Specific Bus", buses)
         st.write(f"**{selected_bus} Manhours:** {total_hours[selected_bus]:.1f} hrs")
 
-        # Bar chart for total manhours
         fig1 = px.bar(total_df, x='Bus', y='Manhours', title="Total Manhours per Bus",
                      labels={'Bus': 'Bus', 'Manhours': 'Total Manhours'},
                      color_discrete_sequence=['green'], text='Manhours')
@@ -70,7 +58,6 @@ if uploaded_file is not None:
         for _, row in top5.iterrows():
             st.markdown(f"• {row['Bus']}: {row['Manhours']:.1f} manhours")
 
-        # Download option
         st.download_button("📥 Download Total Manhours CSV", total_df.to_csv(index=False).encode(),
                            file_name="total_manhours.csv", mime='text/csv')
 
@@ -85,7 +72,7 @@ if uploaded_file is not None:
                      labels={'Avg_Time_Per_Process': 'Avg Time (hrs)'},
                      color_discrete_sequence=['green'], text='Avg_Time_Per_Process')
         fig2.update_layout(yaxis_range=[0, 30], xaxis_tickangle=-45, hovermode="x unified",
-                           width=1200, height=600)
+                           coloraxis_showscale=False, width=1200, height=600)
         st.plotly_chart(fig2, use_container_width=True)
 
         st.download_button("📥 Download Process Averages CSV", process_avg_df.to_csv(index=False).encode(),
@@ -130,10 +117,21 @@ if uploaded_file is not None:
         gap_df = gap_df[gap_df['Process'].str.strip() != '']
         gap_df = gap_df.sort_values(by='Manhours per person', ascending=False)
 
+        station_colors = {
+            'Trim': 'red',
+            'Logistics': 'blue',
+            'Chassis': 'purple',
+            'Body': 'orange',
+            'Metal Finish': 'teal'
+        }
+
+        gap_df['Color'] = gap_df['Station'].map(station_colors)
+
         fig4 = px.bar(gap_df, x='Process', y='Manhours per person', color='Station',
                       title='HR Allocation Gaps by Process',
                       labels={'Manhours per person': 'Manhours/Person'},
-                      category_orders={"Process": gap_df['Process'].tolist()}, text='Manhours per person')
+                      category_orders={"Process": gap_df['Process'].tolist()}, text='Manhours per person',
+                      color_discrete_map=station_colors)
         fig4.update_layout(xaxis_tickangle=-45, width=1200, height=600, hovermode="x unified")
         st.plotly_chart(fig4, use_container_width=True)
 
