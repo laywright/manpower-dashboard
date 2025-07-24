@@ -10,9 +10,10 @@ st.set_page_config(page_title="Bus Manhours Dashboard", layout="wide")
 # -----------------------------
 # Upload Excel File
 # -----------------------------
-st.sidebar.header("📁 Upload Manhours Data")
-file = st.sidebar.file_uploader("Upload Excel File", type=["xlsx"])
-
+# 📥 File upload
+uploaded_file = st.file_uploader("Upload the Excel file", type=["xlsx"])
+if uploaded_file is not None:
+    df = pd.read_excel(uploaded_file, sheet_name='Manhours')
 if file:
     df = pd.read_excel(file, sheet_name='Manhours')
 
