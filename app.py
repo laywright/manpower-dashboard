@@ -38,7 +38,7 @@ if uploaded_file is not None:
     # -----------------------------
     # Tabs Layout
     # -----------------------------
-    tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Process time analysis", "🚨outliers", "Human resource allocation gaps"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Process time analysis", "🚨Outliers", "Human resource allocation gaps"])
 
     with tab1:
         st.subheader("Total manhours summary")
