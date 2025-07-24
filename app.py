@@ -14,7 +14,7 @@ st.set_page_config(
 # -----------------------------
 # Upload Excel File
 # -----------------------------
-st.image("https://img.icons8.com/emoji/96/bus-emoji.png", width=80)
+
 st.title("🚌 BasiGo Manpower Dashboard")
 
 uploaded_file = st.file_uploader("Upload the Excel file", type=["xlsx"])
@@ -75,7 +75,7 @@ if uploaded_file is not None:
                            coloraxis_showscale=False, width=1200, height=600)
         st.plotly_chart(fig2, use_container_width=True)
 
-        st.download_button("📥 Download Process Averages CSV", process_avg_df.to_csv(index=False).encode(),
+        st.download_button("📥 Download process averages CSV", process_avg_df.to_csv(index=False).encode(),
                            file_name="process_avg.csv", mime='text/csv')
 
         st.markdown("**🚨 Top 7 Time Bottlenecks:**")
@@ -111,7 +111,7 @@ if uploaded_file is not None:
                            file_name="outliers.csv", mime='text/csv')
 
     with tab4:
-        st.subheader("👷 Human Resource Allocation Gaps")
+        st.subheader("Human resource allocation gaps")
         gap_df = df[['Station', 'Process', 'Avg_Manhours', 'Number of people', 'Manhours per person']]
         gap_df = gap_df.dropna(subset=['Process'])
         gap_df = gap_df[gap_df['Process'].str.strip() != '']
@@ -135,11 +135,11 @@ if uploaded_file is not None:
         fig4.update_layout(xaxis_tickangle=-45, width=1200, height=600, hovermode="x unified")
         st.plotly_chart(fig4, use_container_width=True)
 
-        st.download_button("📥 Download HR Gaps CSV", gap_df.to_csv(index=False).encode(),
+        st.download_button("📥 Download Human resource gaps CSV", gap_df.to_csv(index=False).encode(),
                            file_name="hr_gaps.csv", mime='text/csv')
 
         st.markdown("**🚨 Top 7 Processes with Highest HR Allocation Gaps:**")
         for _, row in gap_df.head(7).iterrows():
             st.markdown(f"• {row['Process']} ({row['Station']}): {row['Manhours per person']:.2f} hrs/person, {row['Number of people']} people")
 else:
-    st.info("👆 Please upload a valid Excel file to proceed.")
+    st.info(" Please upload a valid Excel file to proceed.")
