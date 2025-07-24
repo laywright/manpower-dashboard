@@ -36,7 +36,7 @@ if uploaded_file is not None:
     avg_manhours = total_df['Manhours'].mean()
 
     # Tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Process time analysis", "Human resource allocation gaps"])
+    tab1, tab2, tab3 = st.tabs(["Summary", "Process time analysis", "Human resource allocation gaps"])
 
     # -------------------- TAB 1 --------------------
     with tab1:
@@ -113,11 +113,12 @@ if uploaded_file is not None:
     with tab3:
         st.subheader("Human resource allocation gaps")
 
-        gap_df = df[['Station', 'Process', 'Avg_Manhours', 'Number of people', 'Manhours per person']]
+        gap_df = df[['Station', 'Process', 'Avg_Manhours', 'Number of people', 'Manhours per person']].copy()
         gap_df = gap_df.dropna(subset=['Process'])
         gap_df = gap_df[gap_df['Process'].str.strip() != '']
         gap_df = gap_df.sort_values(by='Manhours per person', ascending=False)
 
+        # Plot
         station_colors = {
             'Trim': 'red',
             'Logistics': 'blue',
@@ -136,12 +137,19 @@ if uploaded_file is not None:
         fig4.update_layout(xaxis_tickangle=-45, width=1200, height=600, hovermode="x unified")
         st.plotly_chart(fig4, use_container_width=True)
 
+        # HR Gap Table
+        st.markdown("**📋 Table: HR Allocation Gaps**")
+        st.dataframe(
+            gap_df[['Station', 'Process', 'Manhours per person', 'Number of people']].reset_index(drop=True)
+        )
+
+        # Download + Highlights
         st.download_button("📥 Download Human resource gaps CSV", gap_df.to_csv(index=False).encode(),
                            file_name="hr_gaps.csv", mime='text/csv')
 
-        st.markdown("**🚨 Processes with highest Human resource allocation gaps:**")
+        st.markdown("**🚨 Top 7 Processes with highest Human resource allocation gaps:**")
         for _, row in gap_df.head(7).iterrows():
-            st.markdown(f"• {row['Process']} ({row['Station']}): {row['Manhours per person']:.2f} hrs/person, {row['Number of people']} people")
+            st.markdown(f"• {row['Process']} ({row['Station']}): {row['Manhours per person']:.2f} hrs/person, {int(row['Number of people'])} people")
 
 else:
     st.info("Please upload a valid Excel file to proceed.")
