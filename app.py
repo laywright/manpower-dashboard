@@ -15,11 +15,16 @@ st.title("🚌 BasiGo Manpower Dashboard")
 uploaded_file = st.file_uploader("Upload the Excel file", type=["xlsx"])
 
 if uploaded_file is not None:
+    # Load and clean data
     df = pd.read_excel(uploaded_file, sheet_name='Manhours')
     df = df.dropna(how='all').rename(columns=lambda x: str(x).strip())
-    df['Number of people'] = pd.to_numeric(df['Number of people'], errors='coerce')
-    bus_columns = [col for col in df.columns if str(col).startswith('Bus')]
 
+    # Ensure numeric conversion
+    df['Number of people'] = pd.to_numeric(df.get('Number of people', pd.Series(dtype=float)), errors='coerce')
+
+    # Get only bus columns
+    bus_columns = [col for col in df.columns if str(col).startswith('Bus')]
+    
     df['Avg_Time_Per_Process'] = df[bus_columns].mean(axis=1)
     df['Variance'] = df[bus_columns].var(axis=1)
     df['Avg_Manhours'] = df[bus_columns].mean(axis=1)
@@ -30,8 +35,10 @@ if uploaded_file is not None:
     total_df = pd.DataFrame({'Bus': buses, 'Manhours': total_hours.values})
     avg_manhours = total_df['Manhours'].mean()
 
-    tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Process time analysis", "Human resource allocation gaps"])
+    # Tabs
+    tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Process time analysis", "Human resource allocation gaps", "Extra Tab"])
 
+    # -------------------- TAB 1 --------------------
     with tab1:
         st.subheader("Total manhours summary")
         st.metric("Average total manhours per bus", f"{avg_manhours:.1f} hrs")
@@ -40,19 +47,20 @@ if uploaded_file is not None:
         st.write(f"**{selected_bus} Manhours:** {total_hours[selected_bus]:.1f} hrs")
 
         fig1 = px.bar(total_df, x='Bus', y='Manhours', title="Total manhours per bus",
-                     labels={'Bus': 'Bus', 'Manhours': 'Total Manhours'},
-                     color_discrete_sequence=['green'], text='Manhours')
+                      labels={'Bus': 'Bus', 'Manhours': 'Total Manhours'},
+                      color_discrete_sequence=['green'], text='Manhours')
         fig1.update_layout(hovermode="x unified")
         st.plotly_chart(fig1, use_container_width=True)
 
         top5 = total_df.sort_values(by='Manhours', ascending=False).head(5)
-        st.markdown("**🚨 Top 5 buses with highest manhours :**")
+        st.markdown("**🚨 Top 5 buses with highest manhours:**")
         for _, row in top5.iterrows():
             st.markdown(f"• {row['Bus']}: {row['Manhours']:.1f} manhours")
 
         st.download_button("📥 Download total manhours CSV", total_df.to_csv(index=False).encode(),
                            file_name="total_manhours.csv", mime='text/csv')
 
+    # -------------------- TAB 2 --------------------
     with tab2:
         st.subheader("Average time per process (Overall)")
         process_avg_df = df[['Process', 'Avg_Time_Per_Process']].dropna()
@@ -60,9 +68,9 @@ if uploaded_file is not None:
         process_avg_df = process_avg_df.sort_values(by='Avg_Time_Per_Process', ascending=False)
 
         fig2 = px.bar(process_avg_df, x='Process', y='Avg_Time_Per_Process',
-                     title='Average Time per Process Across All Buses',
-                     labels={'Avg_Time_Per_Process': 'Avg Time (hrs)'},
-                     color_discrete_sequence=['green'], text='Avg_Time_Per_Process')
+                      title='Average Time per Process Across All Buses',
+                      labels={'Avg_Time_Per_Process': 'Avg Time (hrs)'},
+                      color_discrete_sequence=['green'], text='Avg_Time_Per_Process')
         fig2.update_layout(yaxis_range=[0, 30], xaxis_tickangle=-45, hovermode="x unified", width=1200, height=600)
         st.plotly_chart(fig2, use_container_width=True)
 
@@ -70,20 +78,22 @@ if uploaded_file is not None:
         for _, row in process_avg_df.head(7).iterrows():
             st.markdown(f"• {row['Process']}: {row['Avg_Time_Per_Process']:.1f} hrs")
 
-        # Station-based breakdown toggle
-        station_options = df['Station'].dropna().unique().tolist()
-        selected_station = st.selectbox("Select Station for Average Process Time", station_options, key='station_avg')
-        station_avg_df = df[df['Station'] == selected_station][['Process', 'Avg_Time_Per_Process']]
-        station_avg_df = station_avg_df.dropna().sort_values(by='Avg_Time_Per_Process', ascending=False)
+        # Station-specific average time
+        if 'Station' in df.columns:
+            station_options = df['Station'].dropna().unique().tolist()
+            if station_options:
+                selected_station = st.selectbox("Select Station for Average Process Time", station_options, key='station_avg')
+                station_avg_df = df[df['Station'] == selected_station][['Process', 'Avg_Time_Per_Process']]
+                station_avg_df = station_avg_df.dropna().sort_values(by='Avg_Time_Per_Process', ascending=False)
 
-        fig_station = px.bar(station_avg_df, x='Process', y='Avg_Time_Per_Process',
-                            title=f'Average Time per Process in {selected_station} Station',
-                            labels={'Avg_Time_Per_Process': 'Avg Time (hrs)'},
-                            color_discrete_sequence=['green'], text='Avg_Time_Per_Process')
-        fig_station.update_layout(xaxis_tickangle=-45, width=1200, height=600, hovermode="x unified")
-        st.plotly_chart(fig_station, use_container_width=True)
+                fig_station = px.bar(station_avg_df, x='Process', y='Avg_Time_Per_Process',
+                                     title=f'Average Time per Process in {selected_station} Station',
+                                     labels={'Avg_Time_Per_Process': 'Avg Time (hrs)'},
+                                     color_discrete_sequence=['green'], text='Avg_Time_Per_Process')
+                fig_station.update_layout(xaxis_tickangle=-45, width=1200, height=600, hovermode="x unified")
+                st.plotly_chart(fig_station, use_container_width=True)
 
-        # Outlier table integration
+        # Outlier Detection Table
         st.subheader("🚨 Outlier Processes (High Variance)")
         top_var_df = df.nlargest(7, 'Variance')[['Station', 'Process']].drop_duplicates()
         df_long_outliers = df.melt(id_vars=['Station', 'Process'], value_vars=bus_columns,
@@ -99,8 +109,10 @@ if uploaded_file is not None:
         else:
             st.dataframe(outliers_table_df[['Bus', 'Station', 'Process', 'Manhours', 'Avg_Manhours_Process']])
 
-  with tab4:
+    # -------------------- TAB 3 --------------------
+    with tab3:
         st.subheader("Human resource allocation gaps")
+
         gap_df = df[['Station', 'Process', 'Avg_Manhours', 'Number of people', 'Manhours per person']]
         gap_df = gap_df.dropna(subset=['Process'])
         gap_df = gap_df[gap_df['Process'].str.strip() != '']
@@ -130,5 +142,6 @@ if uploaded_file is not None:
         st.markdown("**🚨 Processes with highest Human resource allocation gaps:**")
         for _, row in gap_df.head(7).iterrows():
             st.markdown(f"• {row['Process']} ({row['Station']}): {row['Manhours per person']:.2f} hrs/person, {row['Number of people']} people")
+
 else:
-    st.info(" Please upload a valid Excel file to proceed.")
+    st.info("Please upload a valid Excel file to proceed.")
