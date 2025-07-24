@@ -38,7 +38,7 @@ if uploaded_file is not None:
     # -----------------------------
     # Tabs Layout
     # -----------------------------
-    tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Process time analysis", "outliers", "Human resource allocation gaps"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Summary", "Process time analysis", "🚨outliers", "Human resource allocation gaps"])
 
     with tab1:
         st.subheader("Total manhours summary")
@@ -138,7 +138,7 @@ if uploaded_file is not None:
         st.download_button("📥 Download Human resource gaps CSV", gap_df.to_csv(index=False).encode(),
                            file_name="hr_gaps.csv", mime='text/csv')
 
-        st.markdown("** Processes with highest Humen resource allocation gaps:**")
+        st.markdown("** 🚨Processes with highest Humen resource allocation gaps:**")
         for _, row in gap_df.head(7).iterrows():
             st.markdown(f"• {row['Process']} ({row['Station']}): {row['Manhours per person']:.2f} hrs/person, {row['Number of people']} people")
 else:
