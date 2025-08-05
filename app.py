@@ -57,7 +57,7 @@ if uploaded_file is not None:
         for _, row in top5.iterrows():
             st.markdown(f"• {row['Bus']}: {row['Manhours']:.1f} manhours")
 
-        st.download_button("📅 Download total manhours CSV", total_df.to_csv(index=False).encode(),
+        st.download_button("📥  Download total manhours CSV", total_df.to_csv(index=False).encode(),
                            file_name="total_manhours.csv", mime='text/csv')
 
     # -------------------- TAB 2 --------------------
@@ -139,7 +139,7 @@ if uploaded_file is not None:
         fig4.update_layout(xaxis_tickangle=-45, width=1200, height=600, hovermode="x unified")
         st.plotly_chart(fig4, use_container_width=True)
 
-        st.download_button("📅 Download Human resource gaps CSV", gap_df.to_csv(index=False).encode(),
+        st.download_button("📥  Download Human resource gaps CSV", gap_df.to_csv(index=False).encode(),
                            file_name="hr_gaps.csv", mime='text/csv')
 
         st.markdown("**🚨 Top 7 Processes with highest Human resource allocation gaps:**")
