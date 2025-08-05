@@ -74,7 +74,7 @@ if uploaded_file is not None:
         fig2.update_layout(yaxis_range=[0, 30], xaxis_tickangle=-45, hovermode="x unified", width=1200, height=600)
         st.plotly_chart(fig2, use_container_width=True)
 
-        st.markdown("**🚨 Top 7 time bottlenecks:**")
+        st.markdown("**🚨 Top 7 longst processes:**")
         for _, row in process_avg_df.head(7).iterrows():
             st.markdown(f"• {row['Process']}: {row['Avg_Time_Per_Process']:.1f} hrs")
 
