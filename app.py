@@ -56,6 +56,43 @@ if uploaded_file is not None:
         st.markdown("**🚨 Top 5 buses with highest manhours:**")
         for _, row in top5.iterrows():
             st.markdown(f"• {row['Bus']}: {row['Manhours']:.1f} manhours")
+            # KPI comparison setup
+station_kpis = {
+    'Chassis': 8,
+    'Body': 80,
+    'Metal Finish': 24,
+    'Paint': 24,
+    'Trim': 56,
+    'EOL': 16
+}
+manhour_kpi = 1400
+
+# Calculate actual average time per station
+station_avg_times = df.groupby('Station')['Avg_Time_Per_Process'].mean().to_dict()
+
+comparison_data = []
+for station, kpi_time in station_kpis.items():
+    actual_time = station_avg_times.get(station, np.nan)
+    percent_used = (actual_time / kpi_time * 100) if pd.notna(actual_time) else np.nan
+    comparison_data.append({
+        'Station': station,
+        'KPI Time (hrs)': kpi_time,
+        'Actual Avg Time (hrs)': round(actual_time, 2) if pd.notna(actual_time) else 'N/A',
+        '% of KPI Used': f"{round(percent_used, 1)}%" if pd.notna(percent_used) else 'N/A'
+    })
+
+comparison_df = pd.DataFrame(comparison_data)
+
+# Display KPI comparison table
+st.subheader("📊 KPI vs Actual Process Time by Station")
+st.dataframe(comparison_df)
+
+# Manhour KPI comparison
+st.markdown("**🧮 Total Manhours KPI Comparison**")
+st.metric("KPI Target", f"{manhour_kpi} hrs")
+st.metric("Actual Avg Total Manhours", f"{avg_manhours:.1f} hrs")
+st.metric("% of KPI Used", f"{(avg_manhours / manhour_kpi * 100):.1f}%")
+
 
         st.download_button("📥  Download total manhours CSV", total_df.to_csv(index=False).encode(),
                            file_name="total_manhours.csv", mime='text/csv')
