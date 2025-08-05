@@ -94,12 +94,12 @@ if uploaded_file is not None:
                 st.plotly_chart(fig_station, use_container_width=True)
 
         # Outlier Detection Table
-        st.subheader("🚨 Outlier Processes (High Variance)")
+        st.subheader("🚨 Outlier Processes")
         top_var_df = df.nlargest(7, 'Variance')[['Station', 'Process']].drop_duplicates()
         df_long_outliers = df.melt(id_vars=['Station', 'Process'], value_vars=bus_columns,
-                                   var_name='Bus', value_name='Manhours')
+                                   var_name='Bus', value_name='Hours')
         outliers_merged = df_long_outliers.merge(top_var_df, on=['Station', 'Process'])
-        outliers_merged['Avg_Manhours_Process'] = outliers_merged.groupby('Process')['Manhours'].transform('mean')
+        outliers_merged['Avg Hours per Process'] = outliers_merged.groupby('Process')['Manhours'].transform('mean')
         outliers_merged['Z_Score'] = outliers_merged.groupby('Process')['Manhours'].transform(
             lambda x: (x - x.mean()) / x.std(ddof=0))
         outliers_table_df = outliers_merged[outliers_merged['Z_Score'] > 2].sort_values(by='Z_Score', ascending=False)
