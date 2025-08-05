@@ -24,7 +24,7 @@ if uploaded_file is not None:
 
     # Get only bus columns and exclude Bus21 to Bus24
     bus_columns = [col for col in df.columns if str(col).startswith('Bus') and col not in ['Bus 21', 'Bus 22', 'Bus 23', 'Bus 24']]
-    
+
     df['Avg_Time_Per_Process'] = df[bus_columns].mean(axis=1)
     df['Variance'] = df[bus_columns].var(axis=1)
     df['Avg_Manhours'] = df[bus_columns].mean(axis=1)
@@ -57,7 +57,7 @@ if uploaded_file is not None:
         for _, row in top5.iterrows():
             st.markdown(f"• {row['Bus']}: {row['Manhours']:.1f} manhours")
 
-        st.download_button("📥 Download total manhours CSV", total_df.to_csv(index=False).encode(),
+        st.download_button("📅 Download total manhours CSV", total_df.to_csv(index=False).encode(),
                            file_name="total_manhours.csv", mime='text/csv')
 
     # -------------------- TAB 2 --------------------
@@ -78,7 +78,6 @@ if uploaded_file is not None:
         for _, row in process_avg_df.head(7).iterrows():
             st.markdown(f"• {row['Process']}: {row['Avg_Time_Per_Process']:.1f} hrs")
 
-        # Station-specific average time
         if 'Station' in df.columns:
             station_options = df['Station'].dropna().unique().tolist()
             if station_options:
@@ -95,19 +94,26 @@ if uploaded_file is not None:
 
         # Outlier Detection Table
         st.subheader("🚨 Outlier Processes")
+
         top_var_df = df.nlargest(7, 'Variance')[['Station', 'Process']].drop_duplicates()
         df_long_outliers = df.melt(id_vars=['Station', 'Process'], value_vars=bus_columns,
                                    var_name='Bus', value_name='Hours')
         outliers_merged = df_long_outliers.merge(top_var_df, on=['Station', 'Process'])
-        outliers_merged['Avg Hours per Process'] = outliers_merged.groupby('Process')['Manhours'].transform('mean')
-        outliers_merged['Z_Score'] = outliers_merged.groupby('Process')['Manhours'].transform(
+        outliers_merged['Average Hours per Process'] = outliers_merged.groupby('Process')['Hours'].transform('mean')
+        outliers_merged['Z_Score'] = outliers_merged.groupby('Process')['Hours'].transform(
             lambda x: (x - x.mean()) / x.std(ddof=0))
         outliers_table_df = outliers_merged[outliers_merged['Z_Score'] > 2].sort_values(by='Z_Score', ascending=False)
 
         if outliers_table_df.empty:
-            st.info("No significant outliers found.")
+            st.info("✅ No significant outliers found in the top 7 high-variance processes.")
         else:
-            st.dataframe(outliers_table_df[['Bus', 'Station', 'Process', 'Manhours', 'Avg_Manhours_Process']])
+            st.markdown("**📌 Outlier Buses with Unusually High Time on Top Processes:**")
+            st.dataframe(outliers_table_df[['Bus', 'Station', 'Process', 'Hours', 'Average Hours per Process', 'Z_Score']])
+
+            st.markdown(f"""
+            **🧠 Insight:** The above buses took *significantly more time* than average on specific high-variance processes.  
+            A Z-score above 2 indicates a strong deviation. These could signal rework, manpower issues, or process delays.
+            """)
 
     # -------------------- TAB 3 --------------------
     with tab3:
@@ -118,7 +124,6 @@ if uploaded_file is not None:
         gap_df = gap_df[gap_df['Process'].str.strip() != '']
         gap_df = gap_df.sort_values(by='Manhours per person', ascending=False)
 
-        # Plot
         station_colors = {
             'Trim': 'red',
             'Logistics': 'blue',
@@ -137,8 +142,7 @@ if uploaded_file is not None:
         fig4.update_layout(xaxis_tickangle=-45, width=1200, height=600, hovermode="x unified")
         st.plotly_chart(fig4, use_container_width=True)
 
-        # Download + Highlights
-        st.download_button("📥 Download Human resource gaps CSV", gap_df.to_csv(index=False).encode(),
+        st.download_button("📅 Download Human resource gaps CSV", gap_df.to_csv(index=False).encode(),
                            file_name="hr_gaps.csv", mime='text/csv')
 
         st.markdown("**🚨 Top 7 Processes with highest Human resource allocation gaps:**")
