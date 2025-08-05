@@ -107,13 +107,10 @@ if uploaded_file is not None:
         if outliers_table_df.empty:
             st.info("✅ No significant outliers found in the top 7 high-variance processes.")
         else:
-            st.markdown("**📌 Outlier Buses with Unusually High Time on Top Processes:**")
-            st.dataframe(outliers_table_df[['Bus', 'Station', 'Process', 'Hours', 'Average Hours per Process', 'Z_Score']])
+        
+            st.dataframe(outliers_table_df[['Bus', 'Station', 'Process', 'Hours', 'Average Hours per Process']])
 
-            st.markdown(f"""
-            **🧠 Insight:** The above buses took *significantly more time* than average on specific high-variance processes.  
-            A Z-score above 2 indicates a strong deviation. These could signal rework, manpower issues, or process delays.
-            """)
+           
 
     # -------------------- TAB 3 --------------------
     with tab3:
