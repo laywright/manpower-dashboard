@@ -62,7 +62,7 @@ if uploaded_file is not None:
 
     # -------------------- TAB 2 --------------------
     with tab2:
-        st.subheader("Average time per process (Overall)")
+        st.subheader("Average time per process")
         process_avg_df = df[['Process', 'Avg_Time_Per_Process']].dropna()
         process_avg_df = process_avg_df[process_avg_df['Process'].str.strip() != '']
         process_avg_df = process_avg_df.sort_values(by='Avg_Time_Per_Process', ascending=False)
@@ -74,7 +74,7 @@ if uploaded_file is not None:
         fig2.update_layout(yaxis_range=[0, 30], xaxis_tickangle=-45, hovermode="x unified", width=1200, height=600)
         st.plotly_chart(fig2, use_container_width=True)
 
-        st.markdown("**🚨 Top 7 longst processes:**")
+        st.markdown("**🚨 Top 7 longest processes:**")
         for _, row in process_avg_df.head(7).iterrows():
             st.markdown(f"• {row['Process']}: {row['Avg_Time_Per_Process']:.1f} hrs")
 
